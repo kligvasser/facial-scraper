@@ -1,3 +1,4 @@
+
 ## Facial Video Clip Database Builder 
 
 This repository contains two scripts for building a facial video clip database. The first script (`yt-download.py`) downloads YouTube videos in parallel and splits them into smaller clips for efficient processing. The second script (`face-extraction.py`) processes the clips to extract facial regions, compute embeddings, and save the data in a structured format, including metadata.
@@ -53,22 +54,12 @@ Use the `yt-download.py` script to download and split YouTube videos into smalle
 
 **Command**:
 ```bash
-python yt-download.py \
-    --urls <path_to_csv> \
-    --records-dir <output_directory> \
-    --clip-duration <clip_duration_in_minutes> \
-    --num-videos <number_of_videos_to_download> \
-    --num-processes <number_of_parallel_processes>
+python yt-download.py     --urls <path_to_csv>     --records-dir <output_directory>     --clip-duration <clip_duration_in_minutes>     --num-videos <number_of_videos_to_download>     --num-processes <number_of_parallel_processes>
 ```
 
 **Example**:
 ```bash
-python yt-download.py \
-    --urls urls/faces/yt-@Oscars.csv \
-    --records-dir ./downloads \
-    --clip-duration 1 \
-    --num-videos 10 \
-    --num-processes 4
+python yt-download.py     --urls urls/faces/yt-@Oscars.csv     --records-dir ./downloads     --clip-duration 1     --num-videos 10     --num-processes 4
 ```
 
 **Inputs**:
@@ -90,22 +81,12 @@ Use the `face-extraction.py` script to process the video clips, extract facial r
 
 **Command**:
 ```bash
-python face-extraction.py \
-    --input-dir <input_directory> \
-    --output-dir <output_directory> \
-    --cuda-devices <list_of_cuda_devices> \
-    --num-processes <number_of_parallel_processes> \
-    [--make-lmdb]
+python face-extraction.py     --input-dir <input_directory>     --output-dir <output_directory>     --cuda-devices <list_of_cuda_devices>     --num-processes <number_of_parallel_processes>     [--make-lmdb]
 ```
 
 **Example**:
 ```bash
-python face-extraction.py \
-    --input-dir ./downloads \
-    --output-dir ./processed_faces \
-    --cuda-devices cuda:0 cuda:1 \
-    --num-processes 4 \
-    --make-lmdb
+python face-extraction.py     --input-dir ./downloads     --output-dir ./processed_faces     --cuda-devices cuda:0 cuda:1     --num-processes 4     --make-lmdb
 ```
 
 **Inputs**:
@@ -144,7 +125,17 @@ Both scripts generate metadata files summarizing their respective processes.
 
 ---
 
-### Notes
-- Ensure a stable internet connection for YouTube downloads.
-- For GPU acceleration, ensure the correct CUDA drivers and PyTorch version are installed.
-- The `face-extraction.py` script assumes the presence of `_part_` in clip filenames, which is added by `yt-download.py` when splitting videos.
+### Citation
+
+If you find our code useful in your research or applications, please consider citing our paper:
+
+```bibtex
+@article{kligvasser2024anchored,
+  title={Anchored diffusion for video face reenactment},
+  author={Kligvasser, Idan and Cohen, Regev and Leifman, George and Rivlin, Ehud and Elad, Michael},
+  journal={arXiv preprint arXiv:2407.15153},
+  year={2024}
+}
+```
+
+This helps us track the impact of our work and motivates us to continue contributing to the community. Thank you for your support!
