@@ -195,7 +195,7 @@ class YouTubeAPI:
 
 
 if __name__ == "__main__":
-    api_key = "AIzaSyAfPsxWP1DVvucmXciNSBAlsvNi1OTHxFI"
+    api_key = ""
     youtube_api = YouTubeAPI(api_key)
 
     videos = youtube_api.get_recently_uploaded_videos_by_category("10")
