@@ -1,0 +1,32 @@
+name: yt-scraper
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+  - python=3.11.5
+  - pip=21.3
+  - cudatoolkit=11.8
+  - pip:
+    - numpy
+    - torch
+    - torchvision
+    - facenet_pytorch
+    - librosa
+    - moviepy
+    - tqdm
+    - pandas
+    - ipykernel
+    - opencv-python
+    - imageio
+    - ffmpeg
+    - imageio-ffmpeg
+    - lmdb
+    - h5py
+    - einops
+    - mediapipe
+    - matplotlib
+    - -e git+https://github.com/yt-dlp/yt-dlp@master#egg=yt-dlp
+    - -e git+https://github.com/openai/CLIP.git@main#egg=clip
+
+
+  
