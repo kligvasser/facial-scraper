@@ -25,7 +25,7 @@ def list_all_recursive(directory):
     return all_files
 
 
-def process_movie(file_path, output_dir, device, make_lmdb):
+def process_movie(file_path, output_dir, device, make_lmdb, skip_face_detection):
     rows = []
 
     try:
@@ -36,7 +36,6 @@ def process_movie(file_path, output_dir, device, make_lmdb):
         resolution = clip_info.get("resolution", [None, None])
         fps = clip_info.get("fps")
 
-        face_extractor = FaceExtractor(device=device)
         clip_scorer = CLIPImageEmbedder(device=device)
         iqa_scorer = IQAQualityAssessor(device=device)
 
@@ -46,7 +45,12 @@ def process_movie(file_path, output_dir, device, make_lmdb):
         if len(frames) == 0:
             return []
 
-        faces, indexes = face_extractor.extract(frames)
+        if skip_face_detection:
+            faces = [frames]
+            indexes = [(0, len(frames) - 1)]
+        else:
+            face_extractor = FaceExtractor(device=device)
+            faces, indexes = face_extractor.extract(frames)
 
         video_name = os.path.basename(file_path).split(".")[0]
         output_folder = os.path.join(output_dir, video_name)
@@ -54,17 +58,21 @@ def process_movie(file_path, output_dir, device, make_lmdb):
 
         for i, (face_frames, (start_idx, end_idx)) in enumerate(zip(faces, indexes)):
             if len(face_frames) != 0:
-                output_path = os.path.join(
-                    output_folder, f"{video_name}_block_{i+1}.mp4"
-                )
                 height, width, _ = face_frames[0].shape
                 start_time = float(start_idx) / fps
                 end_time = float(end_idx) / fps
-
-                video_cv2.save_frames_as_movie(face_frames, output_path, fps)
-
                 clip_score = clip_scorer.compute_clip_score(face_frames)
                 iqa_scores = iqa_scorer(face_frames)
+
+                output_filename = (
+                    f"{video_name}_block_{i+1}"
+                    f"_start_{start_time:.2f}_end_{end_time:.2f}"
+                    f"_frames_{len(face_frames)}_res_{width}x{height}"
+                    f"_origdur_{duration:.2f}_origres_{resolution[0]}x{resolution[1]}"
+                    f"_origfps_{fps:.2f}_clipscore_{clip_score:.4f}.mp4"
+                )
+                output_path = os.path.join(output_folder, output_filename)
+                video_cv2.save_frames_as_movie(face_frames, output_path, fps)
 
                 if not sr is None:
                     audio_path = output_path.replace(".mp4", ".wav")
@@ -130,14 +138,20 @@ def validate_cuda_devices(cuda_devices):
 
 
 def parallel_face_extraction(
-    input_dir, output_dir, cuda_devices, make_lmdb, num_processes=4
+    input_dir,
+    output_dir,
+    cuda_devices,
+    make_lmdb,
+    num_processes=4,
+    skip_face_detection=False,
 ):
     mp.set_start_method("spawn", force=True)
 
     video_files = [
         os.path.join(input_dir, f)
         for f in list_all_recursive(input_dir)
-        if "_part_" in f and f.endswith((".mp4", ".avi", ".mov"))
+        if (skip_face_detection or "_part_" in f)
+        and f.endswith((".mp4", ".avi", ".mov"))
     ]
 
     os.makedirs(output_dir, exist_ok=True)
@@ -155,7 +169,7 @@ def parallel_face_extraction(
                 pool.starmap(
                     process_movie,
                     [
-                        (file, output_dir, device, make_lmdb)
+                        (file, output_dir, device, make_lmdb, skip_face_detection)
                         for file, device in zip(video_files, device_mapping)
                     ],
                 ),
@@ -191,15 +205,20 @@ def get_arguments():
         help="Path to folder to save extracted videos and metadata",
     )
     parser.add_argument(
-        "--num-processes", type=int, default=1, help="Number of parallel processes"
+        "--num-processes", type=int, default=4, help="Number of parallel processes"
     )
     parser.add_argument(
         "--cuda-devices",
         nargs="+",
-        default=[f"cuda:{i}" for i in range(6, 8)],
+        default=[f"cuda:{i}" for i in range(3, 8)],
         help="List of CUDA devices to use (e.g., cuda:0 cuda:1)",
     )
     parser.add_argument("--make-lmdb", action="store_true")
+    parser.add_argument(
+        "--skip-face-detection",
+        action="store_true",
+        help="Skip face detection if clips already contain extracted faces",
+    )
     return parser.parse_args()
 
 
@@ -211,4 +230,5 @@ if __name__ == "__main__":
         args.cuda_devices,
         args.make_lmdb,
         args.num_processes,
+        args.skip_face_detection,
     )
