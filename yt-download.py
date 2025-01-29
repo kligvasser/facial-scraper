@@ -1,8 +1,8 @@
 import os
 import argparse
 import datetime
-import subprocess
 import pandas as pd
+import subprocess
 import multiprocessing as mp
 from functools import partial
 from tqdm import tqdm
@@ -147,7 +147,7 @@ def main():
     ]
 
     if args.num_videos > 0:
-        new_videos = new_videos.head(args.num_videos)
+        new_videos = new_videos.sample(n=args.num_videos)
 
     data = [row for _, row in new_videos.iterrows()]
 
