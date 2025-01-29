@@ -123,16 +123,6 @@ def process_movie(file_path, output_dir, device, make_lmdb, skip_face_detection)
     except Exception as e:
         print(f" [Failed] Movie {file_path} with the error: {e}")
 
-    finally:
-        del clip_scorer, iqa_scorer
-
-        if not skip_face_detection:
-            del face_extractor
-
-        import gc
-
-        gc.collect()
-
     return rows
 
 
