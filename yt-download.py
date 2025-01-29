@@ -1,12 +1,12 @@
 import os
 import argparse
 import datetime
+import subprocess
 import pandas as pd
 import multiprocessing as mp
 from functools import partial
 from tqdm import tqdm
 from moviepy.video.io.VideoFileClip import VideoFileClip
-from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
 import video_utils.misc as video_misc
 
@@ -27,12 +27,26 @@ def split_video_to_clips(input_video_path, clip_duration_minutes, output_dir):
             output_dir,
             os.path.basename(input_video_path).replace(".mp4", "") + f"_part_{i+1}.mp4",
         )
-        ffmpeg_extract_subclip(
-            inputfile=input_video_path,
-            start_time=start_time,
-            end_time=end_time,
-            outputfile=output_filename,
-        )
+
+        command = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            input_video_path,
+            "-ss",
+            str(start_time),
+            "-to",
+            str(end_time),
+            "-c",
+            "copy",
+            output_filename,
+        ]
+
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result.returncode != 0:
+            print(
+                f"Error in splitting video: {output_filename}\n{result.stderr.decode()}"
+            )
 
     return num_clips
 
