@@ -14,6 +14,7 @@ from video_utils import transcoding_utils
 
 LMDB_SKIP_FRAME = 2
 
+
 def list_all_recursive(directory):
     all_files = []
     for root, dirs, files in os.walk(directory):
@@ -22,6 +23,7 @@ def list_all_recursive(directory):
         for name in dirs:
             all_files.append(os.path.join(root, name))
     return all_files
+
 
 def process_movie(file_path, output_dir, device, make_lmdb):
     rows = []
