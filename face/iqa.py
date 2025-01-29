@@ -14,10 +14,7 @@ class IQAQualityAssessor(torch.nn.Module):
         super().__init__()
         self.device = device
 
-        # Initialize metrics
-        self.metrics = {
-            name: create_metric(name).to(device).eval() for name in metrics
-        }
+        self.metrics = {name: create_metric(name).to(device).eval() for name in metrics}
         for metric in self.metrics.values():
             for param in metric.parameters():
                 param.requires_grad = False
@@ -31,12 +28,15 @@ class IQAQualityAssessor(torch.nn.Module):
 
     def forward(self, images, k=4):
         if len(images) < k:
-            raise ValueError(f"Not enough frames to sample {k} frames. Found {len(images)}.")
+            raise ValueError(
+                f"Not enough frames to sample {k} frames. Found {len(images)}."
+            )
 
         sampled_images = random.sample(images, k)
 
         processed_images = torch.stack([self.preprocess(img) for img in sampled_images])
         processed_images = processed_images.to(self.device)
+        processed_images = torch.clamp(processed_images, min=0, max=1)
 
         scores = {}
         with torch.no_grad():
