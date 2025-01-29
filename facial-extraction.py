@@ -124,7 +124,7 @@ def process_movie(file_path, output_dir, device, make_lmdb, skip_face_detection)
         print(f" [Failed] Movie {file_path} with the error: {e}")
 
     finally:
-        del clip_scorer, iqa_scorer, frames, faces, indexes
+        del clip_scorer, iqa_scorer
 
         if not skip_face_detection:
             del face_extractor
@@ -163,7 +163,7 @@ def parallel_face_extraction(
     mp.set_start_method("spawn", force=True)
 
     total_gpus = len(cuda_devices)
-    num_processes = min(num_processes, total_gpus * 2)
+    num_processes = min(num_processes, total_gpus)
 
     video_files = [
         os.path.join(input_dir, f)
