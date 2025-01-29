@@ -61,8 +61,8 @@ def process_movie(file_path, output_dir, device, make_lmdb, skip_face_detection)
                 height, width, _ = face_frames[0].shape
                 start_time = float(start_idx) / fps
                 end_time = float(end_idx) / fps
-                clip_score = clip_scorer.compute_clip_score(face_frames)
-                iqa_scores = iqa_scorer(face_frames)
+                clip_score = clip_scorer.compute_clip_score(face_frames, k=5)
+                iqa_scores = iqa_scorer(face_frames, k=2)
 
                 output_filename = (
                     f"{video_name}_block_{i+1}"
@@ -123,6 +123,16 @@ def process_movie(file_path, output_dir, device, make_lmdb, skip_face_detection)
     except Exception as e:
         print(f" [Failed] Movie {file_path} with the error: {e}")
 
+    finally:
+        del clip_scorer, iqa_scorer, frames, faces, indexes
+
+        if not skip_face_detection:
+            del face_extractor
+
+        import gc
+
+        gc.collect()
+
     return rows
 
 
@@ -137,6 +147,11 @@ def validate_cuda_devices(cuda_devices):
             )
 
 
+def process_wrapper(args):
+    file, output_dir, device, make_lmdb, skip_face_detection = args
+    return process_movie(file, output_dir, device, make_lmdb, skip_face_detection)
+
+
 def parallel_face_extraction(
     input_dir,
     output_dir,
@@ -146,6 +161,9 @@ def parallel_face_extraction(
     skip_face_detection=False,
 ):
     mp.set_start_method("spawn", force=True)
+
+    total_gpus = len(cuda_devices)
+    num_processes = min(num_processes, total_gpus * 2)
 
     video_files = [
         os.path.join(input_dir, f)
@@ -157,22 +175,24 @@ def parallel_face_extraction(
     os.makedirs(output_dir, exist_ok=True)
 
     device_mapping = [
-        int(device.split(":")[1])
-        for device in (
-            cuda_devices[i % len(cuda_devices)] for i in range(len(video_files))
+        int(cuda_devices[i % total_gpus].split(":")[1]) for i in range(num_processes)
+    ]
+
+    task_args = [
+        (
+            file,
+            output_dir,
+            device_mapping[i % num_processes],
+            make_lmdb,
+            skip_face_detection,
         )
+        for i, file in enumerate(video_files)
     ]
 
     with mp.Pool(processes=num_processes) as pool:
         all_rows = list(
             tqdm(
-                pool.starmap(
-                    process_movie,
-                    [
-                        (file, output_dir, device, make_lmdb, skip_face_detection)
-                        for file, device in zip(video_files, device_mapping)
-                    ],
-                ),
+                pool.imap_unordered(process_wrapper, task_args),
                 total=len(video_files),
                 desc="Processing videos",
             )
