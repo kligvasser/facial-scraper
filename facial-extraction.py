@@ -14,6 +14,14 @@ from video_utils import transcoding_utils
 
 LMDB_SKIP_FRAME = 2
 
+def list_all_recursive(directory):
+    all_files = []
+    for root, dirs, files in os.walk(directory):
+        for name in files:
+            all_files.append(os.path.join(root, name))
+        for name in dirs:
+            all_files.append(os.path.join(root, name))
+    return all_files
 
 def process_movie(file_path, output_dir, device, make_lmdb):
     rows = []
@@ -126,7 +134,7 @@ def parallel_face_extraction(
 
     video_files = [
         os.path.join(input_dir, f)
-        for f in os.listdir(input_dir)
+        for f in list_all_recursive(input_dir)
         if "_part_" in f and f.endswith((".mp4", ".avi", ".mov"))
     ]
 
