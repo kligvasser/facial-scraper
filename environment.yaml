@@ -11,6 +11,7 @@ dependencies:
     - torch
     - torchvision
     - facenet_pytorch
+    - pyiqa
     - librosa
     - moviepy
     - tqdm
