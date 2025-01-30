@@ -46,8 +46,10 @@ def process_movie(file_path, output_dir, device, make_lmdb, skip_face_detection)
             return []
 
         if skip_face_detection:
-            faces = [frames]
-            indexes = [(0, len(frames) - 1)]
+            faces = list()
+            for frame in frames:
+                faces.append(frame)
+            faces, indexes = [faces], [(0, len(frames) - 1)]
         else:
             face_extractor = FaceExtractor(device=device)
             faces, indexes = face_extractor.extract(frames)
