@@ -5,6 +5,9 @@ import pandas as pd
 import multiprocessing as mp
 import soundfile as sf
 from tqdm import tqdm
+
+from pathlib import Path
+
 from face.extractor import FaceExtractor
 from face.clipper import CLIPImageEmbedder
 from face.iqa import IQAQualityAssessor
@@ -13,19 +16,16 @@ from video_utils import transcoding_utils
 
 
 LMDB_SKIP_FRAME = 2
+MAX_PROCESS_PER_GPU = 4
 
 
 def list_all_recursive(directory):
-    all_files = []
-    for root, dirs, files in os.walk(directory):
-        for name in files:
-            all_files.append(os.path.join(root, name))
-        for name in dirs:
-            all_files.append(os.path.join(root, name))
-    return all_files
+    return [str(p) for p in Path(directory).rglob("*") if p.is_file()]
 
 
-def process_movie(file_path, output_dir, device, make_lmdb, skip_face_detection):
+def process_movie(
+    file_path, output_dir, device, make_lmdb, skip_face_detection, include_audio
+):
     rows = []
 
     try:
@@ -36,11 +36,12 @@ def process_movie(file_path, output_dir, device, make_lmdb, skip_face_detection)
         resolution = clip_info.get("resolution", [None, None])
         fps = clip_info.get("fps")
 
-        clip_scorer = CLIPImageEmbedder(device=device)
-        iqa_scorer = IQAQualityAssessor(device=device)
-
         frames = video_cv2.read_movie(file_path)
-        audio, sr = video_cv2.read_audio_from_mp4(file_path)
+
+        if include_audio:
+            audio, sr = video_cv2.read_audio_from_mp4(file_path)
+        else:
+            audio, sr = [], None
 
         if len(frames) == 0:
             return []
@@ -53,6 +54,9 @@ def process_movie(file_path, output_dir, device, make_lmdb, skip_face_detection)
         else:
             face_extractor = FaceExtractor(device=device)
             faces, indexes = face_extractor.extract(frames)
+
+        clip_scorer = CLIPImageEmbedder(device=device)
+        iqa_scorer = IQAQualityAssessor(device=device)
 
         video_name = os.path.basename(file_path).split(".")[0]
         output_folder = os.path.join(output_dir, video_name)
@@ -140,8 +144,10 @@ def validate_cuda_devices(cuda_devices):
 
 
 def process_wrapper(args):
-    file, output_dir, device, make_lmdb, skip_face_detection = args
-    return process_movie(file, output_dir, device, make_lmdb, skip_face_detection)
+    file, output_dir, device, make_lmdb, skip_face_detection, include_audio = args
+    return process_movie(
+        file, output_dir, device, make_lmdb, skip_face_detection, include_audio
+    )
 
 
 def parallel_face_extraction(
@@ -151,14 +157,15 @@ def parallel_face_extraction(
     make_lmdb,
     num_processes=4,
     skip_face_detection=False,
+    include_audio=True,
 ):
     mp.set_start_method("spawn", force=True)
 
     total_gpus = len(cuda_devices)
-    num_processes = min(num_processes, total_gpus)
+    num_processes = min(num_processes, total_gpus * MAX_PROCESS_PER_GPU)
 
     video_files = [
-        os.path.join(input_dir, f)
+        f
         for f in list_all_recursive(input_dir)
         if (skip_face_detection or "_part_" in f)
         and f.endswith((".mp4", ".avi", ".mov"))
@@ -177,6 +184,7 @@ def parallel_face_extraction(
             device_mapping[i % num_processes],
             make_lmdb,
             skip_face_detection,
+            include_audio,
         )
         for i, file in enumerate(video_files)
     ]
@@ -193,10 +201,10 @@ def parallel_face_extraction(
     metadata = [row for rows in all_rows for row in rows]
     metadata_df = pd.DataFrame(metadata)
 
-    metadata_csv = os.path.join(output_dir, "metadata.csv")
+    metadata_csv = os.path.join(output_dir, "ex-metadata.csv")
     metadata_df.to_csv(metadata_csv, index=False)
 
-    metadata_pickle = os.path.join(output_dir, "metadata.pkl")
+    metadata_pickle = os.path.join(output_dir, "ex-metadata.pkl")
     metadata_df.to_pickle(metadata_pickle)
 
     print("Extraction complete.")
@@ -205,8 +213,14 @@ def parallel_face_extraction(
 
 
 def get_arguments():
+    example_text = """
+    Example:
+       python facial-extraction.py  --num-processes 32 --include-audio --input-dir downloads/yt-search/2025-01-30_11-07-27 --output-dir downloads/yt-search/2025-01-30_11-07-27-ex
+    """
+
     parser = argparse.ArgumentParser(
-        description="Extract stable facial frames from videos"
+        description="Extract stable facial frames from videos",
+        epilog=example_text,
     )
     parser.add_argument(
         "--input-dir", required=True, help="Path to folder containing input videos"
@@ -217,12 +231,12 @@ def get_arguments():
         help="Path to folder to save extracted videos and metadata",
     )
     parser.add_argument(
-        "--num-processes", type=int, default=4, help="Number of parallel processes"
+        "--num-processes", type=int, default=8, help="Number of parallel processes"
     )
     parser.add_argument(
         "--cuda-devices",
         nargs="+",
-        default=[f"cuda:{i}" for i in range(3, 8)],
+        default=[f"cuda:{i}" for i in range(0, 4)],
         help="List of CUDA devices to use (e.g., cuda:0 cuda:1)",
     )
     parser.add_argument("--make-lmdb", action="store_true")
@@ -231,6 +245,7 @@ def get_arguments():
         action="store_true",
         help="Skip face detection if clips already contain extracted faces",
     )
+    parser.add_argument("--include-audio", action="store_true")
     return parser.parse_args()
 
 
@@ -243,4 +258,5 @@ if __name__ == "__main__":
         args.make_lmdb,
         args.num_processes,
         args.skip_face_detection,
+        args.include_audio,
     )
