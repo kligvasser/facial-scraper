@@ -16,7 +16,7 @@ from video_utils import transcoding_utils
 
 
 LMDB_SKIP_FRAME = 2
-MAX_PROCESS_PER_GPU = 4
+MAX_PROCESS_PER_GPU = 2
 
 
 def list_all_recursive(directory):
@@ -215,7 +215,7 @@ def parallel_face_extraction(
 def get_arguments():
     example_text = """
     Example:
-       python facial-extraction.py  --num-processes 32 --include-audio --input-dir downloads/yt-search/2025-01-30_11-07-27 --output-dir downloads/yt-search/2025-01-30_11-07-27-ex
+       python facial-extraction.py --num-processes 16 --include-audio --input-dir downloads/yt-search/2025-01-30_11-07-27 --output-dir downloads/yt-search/2025-01-30_11-07-27-ex
     """
 
     parser = argparse.ArgumentParser(
@@ -236,7 +236,7 @@ def get_arguments():
     parser.add_argument(
         "--cuda-devices",
         nargs="+",
-        default=[f"cuda:{i}" for i in range(0, 4)],
+        default=[f"cuda:{i}" for i in range(3, 8)],
         help="List of CUDA devices to use (e.g., cuda:0 cuda:1)",
     )
     parser.add_argument("--make-lmdb", action="store_true")
