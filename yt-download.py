@@ -92,7 +92,7 @@ def download_video_from_id(row, args):
 def get_arguments():
     example_text = """
     Example:
-        python yt-download.py --records-dir ./downloads --urls urls/faces/yt-@Oscars.csv --num-videos 5
+       python yt-download.py --records-dir ./downloads/yt-search/ --urls urls/faces/yt-name-search.csv --num-videos 5000
     """
 
     parser = argparse.ArgumentParser(
@@ -151,22 +151,25 @@ def main():
 
     data = [row for _, row in new_videos.iterrows()]
 
-    with mp.Pool(processes=args.num_processes) as pool:
-        func_partial = partial(download_video_from_id, args=args)
-        results = list(
-            tqdm(
-                pool.imap(func_partial, data),
-                total=len(data),
-                desc="Downloading videos",
-                unit="video",
-            )
-        )
-
-    for result in results:
-        video_id = result["video_id"]
-        df_metadata.loc[video_id] = result
+    video_misc.create_cookies()
 
     df_metadata.to_csv(metadata_path)
+
+    with mp.Pool(processes=args.num_processes) as pool:
+        func_partial = partial(download_video_from_id, args=args)
+
+        for result in tqdm(
+            pool.imap_unordered(func_partial, data),
+            total=len(data),
+            desc="Downloading videos",
+            unit="video",
+        ):
+            video_id = result["video_id"]
+            df_metadata.loc[video_id] = result
+
+            df_metadata.to_csv(metadata_path)
+
+    print("All done!")
 
 
 if __name__ == "__main__":
