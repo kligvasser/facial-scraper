@@ -142,17 +142,22 @@ tmp.*
 *.tar.gz
 *.pb
 
-# youtube-dl
+# Youtube-dl
 youtube-dl/
 
 # pip env
 beam_env/
 src/
 
-# checkpoints
+# Checkpoints
 *.pth
 *.pkl
 *.pt
 results/
 downloads/
 src/
+
+# Clips
+*.mp4
+*.mkv
+*.webm
