@@ -16,13 +16,16 @@ from video_utils import video_cv2
 from video_utils import transcoding_utils
 
 
-VIDEO_EXTENSIONS = (".mp4", ".avi", ".mov", ".mkv")
+VIDEO_EXTENSIONS = ("*.mp4", "*.avi", "*.mov", "*.mkv")
 LMDB_SKIP_FRAME = 2
 MAX_PROCESS_PER_GPU = 1
 
 
 def list_all_recursive(directory):
-    return [str(p) for p in Path(directory).rglob("*") if p.is_file()]
+    video_list = []
+    for ext in VIDEO_EXTENSIONS:
+        video_list += list(Path(directory).rglob(ext))
+    return video_list
 
 
 def parse_existing_extracted_files(output_folder: str, file_path: str, output_dir: str):
@@ -294,7 +297,9 @@ def parallel_face_extraction(
     num_processes = min(num_processes, total_gpus * MAX_PROCESS_PER_GPU)
 
     video_files = [
-        f for f in list_all_recursive(input_dir) if f.lower().endswith(VIDEO_EXTENSIONS)
+        str(f)
+        for f in list_all_recursive(input_dir)
+        if skip_face_detection or "_part_" in str(f)
     ]
 
     os.makedirs(output_dir, exist_ok=True)
