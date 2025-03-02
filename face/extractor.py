@@ -9,9 +9,9 @@ from facenet_pytorch import MTCNN
 class FaceExtractor:
     def __init__(
         self,
-        prob_threshold=0.9,
-        change_var_threshold=0.085,
-        box_var_threshold=0.085,
+        prob_threshold=0.975,
+        change_var_threshold=0.06,
+        box_var_threshold=0.06,
         min_box_size=0.1,
         min_block_size=16,
         max_block_size=16 * 8,
